@@ -7,7 +7,6 @@ copyright:           "2023 4D enthusiast"
 
 extra-source-files:
 - README.md
-- CHANGELOG.md
 
 # Metadata used when publishing your package
 # synopsis:            Short description of your package
@@ -21,11 +20,10 @@ description:         Please see the README on GitHub at <https://github.com/4Den
 dependencies:
 - base >= 4.7 && < 5
 - aeson
+- directory
 - network
 - servant-server
-- streaming-commons
 - unix
-- unliftio
 - wai
 - warp
 
