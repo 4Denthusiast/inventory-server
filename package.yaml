@@ -1,0 +1,72 @@
+name:                inventory-server
+version:             0.1.0.0
+github:              "4Denthusiast/inventory-server"
+license:             CC-BY-4.0
+author:              "4D enthusiast"
+copyright:           "2023 4D enthusiast"
+
+extra-source-files:
+- README.md
+- CHANGELOG.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/4Denthusiast/inventory-server#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+- aeson
+- network
+- servant-server
+- streaming-commons
+- unix
+- unliftio
+- wai
+- warp
+
+ghc-options:
+- -Wall
+- -Wcompat
+- -Widentities
+- -Wincomplete-record-updates
+- -Wincomplete-uni-patterns
+- -Wmissing-export-lists
+- -Wmissing-home-modules
+- -Wpartial-fields
+- -Wredundant-constraints
+
+library:
+  source-dirs: src
+
+executables:
+  inventory-server-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - base
+    - inventory-server
+
+tests:
+  inventory-server-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - base
+    - inventory-server
+    - hspec
+    - hspec-wai
+    - hspec-wai-json
+    - aeson
