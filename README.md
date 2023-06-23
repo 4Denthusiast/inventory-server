@@ -1,1 +1,4 @@
-# inventory-server
+# Inventory server for Dissection
+This is a web app to manage inventories for a roleplaying game I'm writing, Dissection. It's intended to be used with the players and GMs simultaneously interacting with the web app, and also using a separate program for talking (or just meeting in-person) for the roleplay side of the game.
+
+I'm not particularly trying to make this useful to other people beyond the ones I'll be playing with, it's mostly just here for my own benefit. This is not a complete computer game on its own, and I don't intend to publish the accompanying setting and plot that make it a complete game. I guess you can still look if you're interested for some reason, but if you know me and might end up playing the game, I'd prefer if you didn't look at what's here in advance because there will probably be some spoilers and I'd like all the players to experience it at the same time.
