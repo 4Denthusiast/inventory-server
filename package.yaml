@@ -22,10 +22,13 @@ dependencies:
 - aeson
 - containers
 - directory
+- http-api-data
+- http-types
 - network
 - servant-server
 - unix
 - wai
+- wai-app-static
 - warp
 
 ghc-options:

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>Dissection Character Creation</title>
+        <style>
+            .labelLeft {
+                width:8em;
+                text-align:right;
+            }
+            .labelLeft, .labelRight {
+                display:inline-block;
+            }
+            .textFieldLabel {
+                display:inline-block;
+                margin-top:0.5em;
+            }
+            .inputDescription {
+                color: #777;
+                font-size: 0.7em;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Character Creation</h1>
+        <p>Before the game starts, the inventory management system needs to know about your character. You'll be told over Discord when it is time to submit the form. Of course, you should also think about the non-game-mechanical aspects of your character too, what they're like as a person and so on.</p>
+        <form method="post" action="add-character">
+            <label for="name" class="textFieldLabel">Name (IC):<br/><input id="name" name="csName"/></label><br/>
+            <label for="desc" class="textFieldLabel">Description:<br/><input id="desc" name="csDesc" size=50/></label><br/>
+            <span class="inputDescription">Approximately a sentence, including whatever is obvious to other characters from your character's appearance.</span>
+            <h2>Body</h2>
+            <label for="tall" class="labelLeft">Short</label> <input id="tall" name="csTall" type="range" min=0 max=1 step=0.01 value=0.5> <label for="tall" class="labelRight">Tall</label><br/>
+            <label for="muscle" class="labelLeft">Thin</label> <input id="muscle" name="csMuscle" type="range" min=0 max=1 step=0.01 value=0.5> <label for="muscle" class="labelRight">Muscular</label><br/>
+            <label for="fat" class="labelLeft">Thin</label> <input id="fat" name="csFat" type="range" min=0 max=1 step=0.01 value=0.5> <label for="fat" class="labelRight">Fat</label><br/>
+            <h2>Mind</h2>
+            <label for="impulse" class="labelLeft">Restrained</label> <input id="impulse" name="csImpulse" type="range" min=0 max=1 step=0.01 value=0.5> <label for="impulse" class="labelRight">Impulsive</label><br/>
+            <label for="empathy" class="labelLeft">Clinical</label> <input id="empathy" name="csEmpathy" type="range" min=0 max=1 step=0.01 value=0.5> <label for="empathy" class="labelRight">Empathetic</label><br/>
+            <button type="submit">Start</button>
+        </form>
+    </body>
+</html>

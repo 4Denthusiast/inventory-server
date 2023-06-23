@@ -15,6 +15,7 @@ module Data (
   Object(..),
   Item,
   World(..),
+  emptyWorld,
   setAtt,
   setAtt',
   removeAtt,
@@ -30,16 +31,17 @@ import Data.Aeson.Types hiding (Object)
 import qualified Data.Aeson as Aeson
 import qualified Data.Aeson.KeyMap
 import Data.Kind
+import Data.List (mapAccumL)
 import Data.Map.Lazy (Map)
+import qualified Data.Map.Lazy as M
 import Data.String
 import Data.Type.Equality
 import GHC.TypeLits
 
 type ID = Int
 
-data Object = Commodity String Double | Item ID deriving Show
-
-$(deriveJSON defaultOptions ''Object)
+data Object = Commodity String Double | ItemRef ID deriving Show
+data ObjectInline = CommodityI String Double | ItemI Item
 
 type Item = [AnAtt]
 
@@ -48,6 +50,9 @@ data World = World {
   nextID :: ID,
   playerSouls :: Map String ID
 }
+
+emptyWorld :: World
+emptyWorld = World M.empty 0 M.empty
 
 class KnownSymbol s => Attribute (s::Symbol) where
   type AData s :: Type
@@ -59,9 +64,13 @@ class KnownSymbol s => Attribute (s::Symbol) where
 newtype SSymbol (s :: Symbol) = SSymbol String --This isn't public in this GHC version, but I need something like it and it doesn't actually matter if it's the same as the library's version.
 data AnAtt where
   AnAtt :: forall (s::Symbol). (KnownSymbol s, ToJSON (AData s)) => SSymbol s -> AData s -> AnAtt
+$(deriveJSON defaultOptions ''Object)
+$(deriveJSON defaultOptions ''ObjectInline)
 
 instance Attribute "container" where type AData "container" = [Object] --The contents of a container are not attached and can trivially be removed.
 instance Attribute "components" where type AData "components" = [Object] --The components of an item may be hard to remove and may affect its function.
+instance Attribute "containerInline" where type AData "containerInline" = [ObjectInline]
+instance Attribute "componentsInline" where type AData "componentsInline" = [ObjectInline]
 instance Attribute "name" where type AData "name" = String
 instance Attribute "desc" where type AData "desc" = String
 instance Attribute "text" where type AData "text" = String
@@ -118,3 +127,24 @@ instance FromJSON AnAtt where
           attTypes = [attType @"container", attType @"components", attType @"name", attType @"desc", attType @"text", attType @"recipe", attType @"location", attType @".."]
           attType :: forall s. (KnownSymbol s, FromJSON (AData s), ToJSON (AData s)) => AttType
           attType = AttType $ SSymbol @s (symbolVal @s undefined)
+
+$(deriveJSON defaultOptions ''World)
+
+-- Given an item all of whose contents and components are inline, add it to the world. Optionally give the item being added some location.
+deinline :: Maybe ID -> Item -> World -> (World,ID)
+deinline up it w = (w3{itemStore = M.insert n it3 (itemStore w3)}, n)
+  where n = nextID w
+        it1 = case up of
+          Nothing -> it
+          Just up' -> setAtt @".." up' it
+        w1 = w{nextID = n+1}
+        (it2,w2) = case getAtt' @"containerInline" it1 of
+          Nothing -> (it1,w1)
+          Just c -> let (w',c') = insertContents w1 c in (setAtt @"container" c' $ removeAtt @"containerInline" it1, w')
+        (it3,w3) = case getAtt' @"componentsInline" it2 of
+          Nothing -> (it2,w2)
+          Just c -> let (w',c') = insertContents w2 c in (setAtt @"components" c' $ removeAtt @"componentsInline" it2, w')
+        insertContents = mapAccumL (\w' o -> case o of
+            ItemI i -> ItemRef <$> deinline (Just n) i w'
+            CommodityI t q -> (w',Commodity t q)
+          )

@@ -1,31 +1,33 @@
-{-# LANGUAGE DataKinds       #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TemplateHaskell #-}
-{-# LANGUAGE TypeOperators   #-}
+{-# LANGUAGE TypeOperators #-}
 module Lib (
   startAppNet,
   startAppSocket,
   app
 ) where
 
+import Data
+import PlayerInterface
+import GMInterface
+
+import Control.Concurrent.MVar
 import Control.Exception
-import Data.Aeson
-import Data.Aeson.TH
+import Control.Monad.IO.Class
+import Data.Maybe
+import Network.HTTP.Types.Header
+import Network.HTTP.Types.Status
 import Network.Socket
 import Network.Wai
 import Network.Wai.Handler.Warp
 import Servant
 import System.Directory
 import System.Posix.Files
+import WaiAppStatic.Storage.Filesystem
+import WaiAppStatic.Types
 
-data User = User
-  { userId        :: Int
-  , userFirstName :: String
-  , userLastName  :: String
-  } deriving (Eq, Show)
-
-$(deriveJSON defaultOptions ''User)
-
-type API = "users" :> Get '[JSON] [User]
+type API = PlayerAPI :<|> GMAPI :<|> Raw
 
 internalSocket :: String -> IO Socket
 internalSocket addr = do
@@ -35,7 +37,9 @@ internalSocket addr = do
   return sock
 
 startAppNet :: IO ()
-startAppNet = run 8080 app
+startAppNet = do
+  worldVar <- loadWorld
+  run 8080 (app worldVar)
 
 startAppSocket :: String -> IO ()
 startAppSocket addr = bracket
@@ -49,19 +53,32 @@ startAppSocket addr = bracket
   )
   (\sock -> do
     listen sock 5
-    runSettingsSocket defaultSettings sock app
+    worldVar <- loadWorld
+    runSettingsSocket defaultSettings sock (app worldVar)
   )
 
-app :: Application
-app = serve api server
+loadWorld :: IO (MVar World)
+loadWorld = newMVar $ World mempty 0 mempty
+
+app :: MVar World -> Application
+app = serveWithContext api authCheckContext . server
 
 api :: Proxy API
 api = Proxy
 
-server :: Server API
-server = return users
+server :: MVar World -> Server API
+server worldVar = playerServer :<|> gmServer :<|> staticServer
 
-users :: [User]
-users = [ User 1 "Isaac" "Newton"
-        , User 2 "Albert" "Einstein"
-        ]
+staticServer :: Server Raw
+staticServer = serveDirectoryWith (defaultWebAppSettings "./pages"){
+    ssIndices = [fromJust $ toPiece "index.html"],
+    ss404Handler = Just notFoundApp
+  }
+-- TODO: Set all the required headers in the 404 handler (it's the empty list currently).
+
+notFoundApp :: Application
+notFoundApp _ c = do
+  let path = "./pages/404.html"
+  file <- getFileStatus path
+  let size = toInteger $ fileSize file --I have to provide the file size explicitly otherwise Warp ignores that it's meant to be using a 404 status for some reason.
+  c $ responseFile status404 [(hContentType, "text/html")] path (Just $ FilePart 0 size size)
