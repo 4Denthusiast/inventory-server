@@ -58,7 +58,7 @@ startAppSocket addr = bracket
   )
 
 loadWorld :: IO (MVar World)
-loadWorld = newMVar $ World mempty 0 mempty
+loadWorld = newMVar $ emptyWorld
 
 app :: MVar World -> Application
 app = serveWithContext api authCheckContext . server
@@ -67,7 +67,7 @@ api :: Proxy API
 api = Proxy
 
 server :: MVar World -> Server API
-server worldVar = playerServer :<|> gmServer :<|> staticServer
+server worldVar = playerServer worldVar :<|> gmServer worldVar :<|> staticServer
 
 staticServer :: Server Raw
 staticServer = serveDirectoryWith (defaultWebAppSettings "./pages"){

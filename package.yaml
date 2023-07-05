@@ -24,9 +24,11 @@ dependencies:
 - directory
 - http-api-data
 - http-types
+- mtl
 - network
 - servant-server
 - unix
+- utf8-string
 - wai
 - wai-app-static
 - warp

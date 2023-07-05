@@ -13,6 +13,7 @@ body {
     flex: 1;
     border: 1px black solid;
     margin: 0.2em;
+    flex-direction: column;
 }
 .col-title {
     margin: 0.4em;
