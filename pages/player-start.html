@@ -19,6 +19,14 @@
                 color: #777;
                 font-size: 0.7em;
             }
+            .sliderBackground {
+                background-image: linear-gradient(to right,#eaa,20%,#d8d8d8 20%,40%,azure 40%,60%,#d8d8d8 60%,80%,#eaa 80%,#eaa);
+                display: inline-block;
+                vertical-align:bottom;
+            }
+            .sliderBackground>input {
+                display:block;
+            }
         </style>
     </head>
     <body>
@@ -28,13 +36,14 @@
             <label for="name" class="textFieldLabel">Name (IC):<br/><input id="name" name="csName"/></label><br/>
             <label for="desc" class="textFieldLabel">Description:<br/><input id="desc" name="csDesc" size=50/></label><br/>
             <span class="inputDescription">Approximately a sentence, including whatever is obvious to other characters from your character's appearance.</span>
+            <p>Each of these sliders uses an arbitrary non-linear scale, where the middle fifth or so of the range is normal, the second and fourth fifths are notably different from normal, and the first and last fifths are extreme and unusual.</p>
             <h2>Body</h2>
-            <label for="tall" class="labelLeft">Short</label> <input id="tall" name="csTall" type="range" min=0 max=1 step=0.01 value=0.5> <label for="tall" class="labelRight">Tall</label><br/>
-            <label for="muscle" class="labelLeft">Thin</label> <input id="muscle" name="csMuscle" type="range" min=0 max=1 step=0.01 value=0.5> <label for="muscle" class="labelRight">Muscular</label><br/>
-            <label for="fat" class="labelLeft">Thin</label> <input id="fat" name="csFat" type="range" min=0 max=1 step=0.01 value=0.5> <label for="fat" class="labelRight">Fat</label><br/>
+            <label for="tall" class="labelLeft">Short</label> <span class="sliderBackground"><input id="tall" name="csTall" type="range" min=0 max=1 step=0.01 value=0.5></span> <label for="tall" class="labelRight">Tall</label><br/>
+            <label for="muscle" class="labelLeft">Thin</label> <span class="sliderBackground"><input id="muscle" name="csMuscle" type="range" min=0 max=1 step=0.01 value=0.5></span> <label for="muscle" class="labelRight">Muscular</label><br/>
+            <label for="fat" class="labelLeft">Thin</label> <span class="sliderBackground"><input id="fat" name="csFat" type="range" min=0 max=1 step=0.01 value=0.5></span> <label for="fat" class="labelRight">Fat</label><br/>
             <h2>Mind</h2>
-            <label for="impulse" class="labelLeft">Restrained</label> <input id="impulse" name="csImpulse" type="range" min=0 max=1 step=0.01 value=0.5> <label for="impulse" class="labelRight">Impulsive</label><br/>
-            <label for="empathy" class="labelLeft">Clinical</label> <input id="empathy" name="csEmpathy" type="range" min=0 max=1 step=0.01 value=0.5> <label for="empathy" class="labelRight">Empathetic</label><br/>
+            <label for="impulse" class="labelLeft">Restrained</label> <span class="sliderBackground"><input id="impulse" name="csImpulse" type="range" min=0 max=1 step=0.01 value=0.5></span> <label for="impulse" class="labelRight">Impulsive</label><br/>
+            <label for="empathy" class="labelLeft">Clinical</label> <span class="sliderBackground"><input id="empathy" name="csEmpathy" type="range" min=0 max=1 step=0.01 value=0.5></span> <label for="empathy" class="labelRight">Empathetic</label><br/>
             <button type="submit">Start</button>
         </form>
     </body>
