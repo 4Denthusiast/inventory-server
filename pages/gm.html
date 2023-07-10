@@ -10,6 +10,9 @@
             div {
                 display:flex;
             }
+            .tab {
+                flex-grow: 1;
+            }
         </style>
     </head>
     <body style="flex-direction: column;">
@@ -19,7 +22,7 @@
             <label><input type="radio" name="tab-select" value="recipes" class="tab-button"/>Recipes</label>
         </div>
         <div class="tab" id="locations">
-            <div id="locations-column" class="column">
+            <div id="locations-column" class="column index-column">
                 <h2 class="col-title">Locations</h2>
                 <div>
                     <button onclick="createLocation()">Add</button>
@@ -30,12 +33,12 @@
             </div>
         </div>
         <div class="tab" id="players">
-            <div id="players-column" class="column">
+            <div id="players-column" class="column index-column">
                 <h2 class="col-title">Players</h2>
             </div>
         </div>
         <div class="tab" id="recipes">
-            <div id="recipes-column" class="column">
+            <div id="recipes-column" class="column index-column">
                 <h2 class="col-title">Recipes</h2>
             </div>
         </div>

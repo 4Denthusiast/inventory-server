@@ -41,3 +41,16 @@ specificNewItemHandler = function(id, oldItem, newItem) {
 }
 
 visibleAttributes.splice(1,0,"..");
+
+function addExtraControls(id, nameElement) {
+    var button = document.createElement("button");
+    button.className = "add-attribute-button item-button";
+    button.title = "add attribute";
+    button.textContent = "+";
+    nameElement.insertAdjacentElement("afterend", button);
+    button.addEventListener("click", function(event) {
+        event.stopPropagation();
+        setInteractionState("add-attribute", id, true);
+        document.getElementById("add-attribute-details").hidden = false;
+    });
+}

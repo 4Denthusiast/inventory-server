@@ -118,22 +118,22 @@ function createView(view) {
     var rootElement;
     if (view.loading) {
         rootElement = document.createElement("div");
-        rootElement.className = "itemView";
+        rootElement.className = "item-view";
         rootElement.textContent = "Loading...";
     } else {
         var enclosingElement = document.createElement("div"); //An extra outer element must be used because setting outerHTML doesn't work on an element that isn't actually in the DOM tree.
         switch(view.type) {
             case "shortInList":
-                enclosingElement.innerHTML = '<div class="itemView"><div class="itemViewHeader"><div class="itemViewName"></div><button class="expandButton itemButton"><img src="/icons/right-arrow.svg" alt="expand"/></button></div></div>';
+                enclosingElement.innerHTML = '<div class="item-view"><div class="item-view-header"><div class="item-view-name"></div><button class="expand-button item-button" title="expand item view"><img src="/icons/right-arrow.svg" alt="expand"/></button></div></div>';
                 break;
             case "content":
-                enclosingElement.innerHTML = '<div class="itemView"><div class="itemViewHeader"><div class="itemViewName"></div><button class="removeButton itemButton"><img src="/icons/hand.png" alt="move"/></button><button class="expandButton itemButton"><img src="/icons/down-arrow.svg" alt="expand"/></button></div><ul class="attributeList" hidden></ul></div>';
+                enclosingElement.innerHTML = '<div class="item-view"><div class="item-view-header"><div class="item-view-name"></div><button class="remove-button item-button" title="move item"><img src="/icons/hand.png" alt="move"/></button><button class="expand-button item-button" title="expand item view"><img src="/icons/down-arrow.svg" alt="expand"/></button></div><ul class="attribute-list" hidden></ul></div>';
                 break;
             case "component":
-                enclosingElement.innerHTML = '<div class="itemView"><div class="itemViewHeader"><div class="itemViewName"></div><button class="removeButton itemButton"><img src="/icons/knife.png" alt="remove"/></button><button class="expandButton itemButton"><img src="/icons/down-arrow.svg" alt="expand"/></button></div><ul class="attributeList" hidden></ul></div>';
+                enclosingElement.innerHTML = '<div class="item-view"><div class="item-view-header"><div class="item-view-name"></div><button class="remove-button item-button" title="remove component"><img src="/icons/knife.svg" alt="remove"/></button><button class="expand-button item-button" title="expand item view"><img src="/icons/down-arrow.svg" alt="expand"/></button></div><ul class="attribute-list" hidden></ul></div>';
                 break;
             case "root":
-                enclosingElement.innerHTML = '<div class="itemView rootItemView column"><div class="itemViewHeader"><div class="itemViewName"></div></div><ul class="attributeList"></ul></div>';
+                enclosingElement.innerHTML = '<div class="item-view root-item-view column"><h2 class="item-view-name col-title"></h2><ul class="attribute-list"></ul></div>';
                 break;
         }
         rootElement = enclosingElement.children[0];
@@ -145,17 +145,20 @@ function createView(view) {
         function getElement(name) {
             return rootElement.getElementsByClassName(name)[0];
         }
-        view.nameElement = getElement("itemViewName");
+        view.nameElement = getElement("item-view-name");
         view.nameElement.textContent = items[view.id].name || "[Unnamed Item]";
-        var expandButton = getElement("expandButton");
+        if (gm) {
+            addExtraControls(view.id, view.nameElement);
+        }
+        var expandButton = getElement("expand-button");
         if (expandButton) {
             expandButton.addEventListener("click", expandItemView(view));
         }
-        var removeButton = getElement("removeButton");
+        var removeButton = getElement("remove-button");
         if (removeButton) {
-            removeButton.addEventListener("click", moveItem(view.id, view.type == component));
+            removeButton.addEventListener("click", moveItem(view.id, view.type == "component"));
         }
-        view.attListElement = getElement("attributeList");
+        view.attListElement = getElement("attribute-list");
         view.attElements = {};
         view.expanded = view.type == "root";
         if (view.expanded) {
@@ -177,6 +180,7 @@ const createAttView = {
 
 function expandItemView(view) {
     return function(event) {
+        event.stopPropagation();
         view.expanded = !view.expanded;
         var expandButtonImg = event.currentTarget.children[0];
         if (view.expanded) {
@@ -241,6 +245,23 @@ function findAndDestroyChildren(element) {
 
 var interactionState = "none";
 var interactionStateData;
+var interactionStateIsId = false;
+
+function setInteractionState(state, data, isId) {
+    if (interactionStateIsId) {
+        for (var i in itemViews[interactionStateData]) {
+            itemViews[interactionStateData][i].element.classList.remove("item-highlighted");
+        }
+    }
+    if (isId) {
+        for (var i in itemViews[data]) {
+            itemViews[data][i].element.classList.add("item-highlighted");
+        }
+    }
+    interactionState = state;
+    interactionStateData = data;
+    interactionStateIsId = isId;
+}
 
 function clickView(view) {
     return function(event) {
@@ -248,8 +269,10 @@ function clickView(view) {
             case "none":
                 return;
             case "movingItem":
-                alert("Placeholder: moving item "+interactionStateData); //TODO
-                interactionState = "none";
+                var id = interactionStateData;
+                setInteractionState("none");
+                if (view.id == id) break;
+                alert("Placeholder: moving item "+id); //TODO
                 break;
         }
     }
@@ -257,10 +280,14 @@ function clickView(view) {
 
 var attachedWarningShown = false;
 function moveItem(id, attached) {
-    if (attached && !attachedWarningShown) {
-        alert("Removing a part of something may require a tool, such as a knife, screwdriver or saw. This website doesn't know what counts as a suitable tool, so you'll need to apply this rule yourself.");
-        attachedWarningShown = true;
+    return function(event) {
+        event.stopPropagation();
+        if (attached && !attachedWarningShown) {
+            alert("Removing a part of something may require a tool, such as a knife, screwdriver or saw. This website doesn't know what counts as a suitable tool, so you'll need to apply this rule yourself.");
+            attachedWarningShown = true;
+        }
+        setInteractionState("movingItem", id, true);
+        interactionState = "movingItem";
+        interactionStateData = id;
     }
-    interactionState = "movingItem";
-    interactionStateData = id;
 }
