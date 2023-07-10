@@ -52,10 +52,17 @@ addCharacterServer worldVar char = liftIO (putStrLn (show char)) >> return (addH
 
 itemUpdatesServer :: MVar World -> Server ItemUpdatesAPI
 itemUpdatesServer worldVar (Just name) clientWants = do
-  clientState <- changeListening worldVar name clientWants
-  idList <- liftIO $ queuePopTimeout 30000000 $ itemUpdateQueue clientState
-  world' <- liftIO $ readMVar worldVar --Explicitly refresh this because queuePop is designed to block so this read will execute much later in general.
-  return $ mapMaybe (\i -> (i,,) <$> M.lookup i (itemStore world') <*> M.lookup i (itemNewness world')) idList
+    liftIO $ replaceListeningThread
+    clientState <- changeListening worldVar name clientWants
+    idList <- liftIO $ queuePopTimeout 30000000 $ itemUpdateQueue clientState
+    world' <- liftIO $ readMVar worldVar --Explicitly refresh this because queuePop is designed to block so this read will execute much later in general.
+    return $ mapMaybe (\i -> (i,,) <$> M.lookup i (itemStore world') <*> M.lookup i (itemNewness world')) idList
+  where replaceListeningThread = modifyMVar_ worldVar $ \world -> case M.lookup name (clientStates world) of
+          Just cs -> do
+            maybe (return ()) killThread (clientListeningThread cs)
+            t <- myThreadId
+            return world{clientStates = M.insert name cs{clientListeningThread = Just t} (clientStates world)}
+          Nothing -> putStrLn ("Error, unknown user "++name) >> return world
 itemUpdatesServer _ Nothing _ = throwError $ ServerError 422 "Unprocessable Entity" "Could not process request due to missing \"name\" parameter." []
 
 changeListeningServer :: MVar World -> Server ChangeListeningAPI

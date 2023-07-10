@@ -34,7 +34,7 @@ module Data (
   queuePopTimeout
 ) where
 
-import Control.Concurrent.MVar
+import Control.Concurrent
 import Control.Exception.Base
 import Control.Monad
 import Data.Aeson hiding (Object)
@@ -70,7 +70,8 @@ data IOQueue a = IOQueue (MVar (a,IOQueue a))
 data ClientState = ClientState {
   itemUpdateQueue :: IOQueue ID,
   itemsListened :: Set ID,
-  clientTimeout :: Int
+  clientTimeout :: Int,
+  clientListeningThread :: Maybe ThreadId
 }
 
 data World = World {

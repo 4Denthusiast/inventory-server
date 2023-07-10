@@ -39,7 +39,7 @@ gmPageServer worldVar _ (Just name) = Tagged $ \_ c -> do
           Just _ -> return world
           Nothing -> do
             q <- newEmptyQueue
-            return world{clientStates = M.insert name (ClientState q S.empty 0) css}
+            return world{clientStates = M.insert name (ClientState q S.empty 0 Nothing) css}
 
 authCheckContext :: Context '[BasicAuthCheck String]
 authCheckContext = check :. EmptyContext
