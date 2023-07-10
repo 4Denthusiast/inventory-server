@@ -20,6 +20,24 @@ function createLocation() {
     message.send(document.getElementById("new-location-name").value);
 }
 
-newItemHandler = function(id, oldItem, item) {
-    if (item.location) alert(item.name);
+specificNewItemHandler = function(id, oldItem, newItem) {
+    var viewType = null;
+    var whereToAdd = null;
+    var expandedViewLocation = null;
+    if (newItem.location && (!oldItem || !oldItem.location)) {
+        viewType = "shortInList";
+        whereToAdd = "location-list";
+        expandedViewLocation = "locations";
+    } //TODO: Add the player and recipe cases.
+    if (viewType) {
+        var newView = {
+            type:viewType,
+            id:id,
+            whereToPutColumn:document.getElementById(expandedViewLocation)
+        };
+        createView(newView);
+        document.getElementById(whereToAdd).appendChild(newView.element);
+    }
 }
+
+visibleAttributes.splice(1,0,"..");

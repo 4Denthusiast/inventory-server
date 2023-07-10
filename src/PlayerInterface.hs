@@ -12,7 +12,6 @@ module PlayerInterface (
 import Data
 
 import Control.Concurrent
-import Control.Concurrent.MVar
 import Control.Monad
 import Control.Monad.Error.Class
 import Control.Monad.IO.Class
@@ -21,7 +20,6 @@ import qualified Data.Map.Lazy as M
 import Data.Maybe
 import qualified Data.Set as S
 import GHC.Generics
-import Network.HTTP.Types.Header hiding (Header)
 import Servant
 import Web.Internal.FormUrlEncoded
 
