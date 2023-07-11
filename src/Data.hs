@@ -13,12 +13,14 @@
 module Data (
   ID,
   Object(..),
+  AnAtt,
   Item,
   PlayerState(..),
   ClientState(..),
   World(..),
   emptyWorld,
   setAtt,
+  setAnAtt,
   setAtt',
   removeAtt,
   getAtt,
@@ -95,7 +97,7 @@ class KnownSymbol s => Attribute (s::Symbol) where
 
 newtype SSymbol (s :: Symbol) = SSymbol String --This isn't public in this GHC version, but I need something like it and it doesn't actually matter if it's the same as the library's version.
 data AnAtt where
-  AnAtt :: forall (s::Symbol). (KnownSymbol s, ToJSON (AData s)) => SSymbol s -> AData s -> AnAtt
+  AnAtt :: forall (s::Symbol). (KnownSymbol s, ToJSON (AData s), Attribute s) => SSymbol s -> AData s -> AnAtt
 $(deriveJSON defaultOptions ''Object)
 $(deriveJSON defaultOptions ''ObjectInline)
 
@@ -117,6 +119,9 @@ setAtt att (AnAtt s' att':item') = case sameSymbol @s undefined s' of
   Just Refl -> AnAtt s' att : item'
   Nothing -> AnAtt s' att' : setAtt @s att item'
 setAtt att [] = [AnAtt (SSymbol @s (symbolVal @s undefined)) att]
+
+setAnAtt :: AnAtt -> Item -> Item
+setAnAtt (AnAtt @s _ x) item = setAtt @s x item
 
 getAtt' :: forall s. Attribute s => Item -> Maybe (AData s)
 getAtt' (AnAtt s' att:item') = case sameSymbol @s undefined s' of
@@ -145,7 +150,7 @@ instance ToJSON AnAtt where
   toEncodingList = toEncoding . toJSONList --The toEncoding used here is from the ToJSON Value instance rather than this one.
 
 data AttType where
-  AttType :: forall s. (KnownSymbol s, FromJSON (AData s), ToJSON (AData s)) => SSymbol s -> AttType
+  AttType :: forall s. (KnownSymbol s, FromJSON (AData s), ToJSON (AData s), Attribute s) => SSymbol s -> AttType
 
 instance FromJSON AnAtt where
   parseJSON = error "Deserialising individual attributes is not defined."
@@ -157,7 +162,7 @@ instance FromJSON AnAtt where
                 Nothing -> mempty
               ) attTypes
           attTypes = [attType @"container", attType @"components", attType @"name", attType @"desc", attType @"text", attType @"recipe", attType @"location", attType @".."]
-          attType :: forall s. (KnownSymbol s, FromJSON (AData s), ToJSON (AData s)) => AttType
+          attType :: forall s. (FromJSON (AData s), ToJSON (AData s), Attribute s) => AttType
           attType = AttType $ SSymbol @s (symbolVal @s undefined)
 
 -- It is assumed that the only case where a client needs to be notified of a new item they don't know to ask for is in routines specifically designed for adding new locations, in which case the notification can be dealt with separately.

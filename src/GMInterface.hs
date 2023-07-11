@@ -21,14 +21,14 @@ import Network.HTTP.Types.Header
 import Network.HTTP.Types.Status
 import Network.Wai
 import Servant
-import WaiAppStatic.Storage.Filesystem
 
-type GMAPI = GMPageAPI :<|> CreateLocationAPI
+type GMAPI = GMPageAPI :<|> CreateLocationAPI :<|> AddAttributeAPI
 type GMPageAPI = "gm.html" :> BasicAuth "gm" String :> QueryParam "name" String :> Raw
 type CreateLocationAPI = "create-location" :> ReqBody '[PlainText] String :> PostNoContent
+type AddAttributeAPI = "add-attribute" :> ReqBody '[JSON] (ID,Item) :> PostNoContent
 
 gmServer :: MVar World -> Server GMAPI
-gmServer worldVar = gmPageServer worldVar :<|> createLocationServer worldVar
+gmServer worldVar = gmPageServer worldVar :<|> createLocationServer worldVar :<|> addAttributeServer worldVar
 
 gmPageServer :: MVar World -> Server GMPageAPI
 gmPageServer _ name Nothing = Tagged $ \_ c -> c $ responseLBS seeOther303 [(hLocation, UTF8.fromString $ "/gm.html?name=gm%20"++name)] "" --Make the name available in JS
@@ -59,3 +59,10 @@ publishLocation :: MVar World -> ID -> IO ()
 publishLocation worldVar i = modifyMVar_ worldVar $ \world -> do
   forM_ (M.toList $ clientStates world) $ \(name, state) -> if take 3 name == "gm " then enqueue (itemUpdateQueue state) i else return ()
   return world{locationList = i:locationList world}
+
+addAttributeServer :: MVar World -> Server AddAttributeAPI
+addAttributeServer worldVar (i,[att]) = (liftIO $ modifyMVar_ worldVar $ \world -> case M.lookup i (itemStore world) of
+    Nothing -> return world
+    Just item -> changeItem i (setAnAtt att item) world --TODO: Allow other updates based on this.
+  ) >> return NoContent
+addAttributeServer _ _ = error "wrong number of attributes received in add-attribute."

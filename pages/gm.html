@@ -42,5 +42,22 @@
                 <h2 class="col-title">Recipes</h2>
             </div>
         </div>
+        <dialog id="add-attribute-details">
+            <h2 class="col-title">Add Attribute</h2>
+            <label>Attribute type: <input list="attribute-type-list" id="add-att-type-input" oninput="updateAddAttTypeInput()"></label>
+            <div id="add-att-input-container">
+                <textarea id="add-att-text-input" hidden></textarea>
+            </div>
+            <div>
+                <button onclick="addAttCancel()" class="dialog-cancel">Cancel</button>
+                <button id="add-att-submit" onclick="addAttSubmit()">Add</button>
+            </div>
+            <datalist id="attribute-type-list">
+                <option value="name">
+                <option value="desc">
+                <option value="container">
+                <option value="components">
+            </datalist>
+        </dialog>
     </body>
 </html>

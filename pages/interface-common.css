@@ -8,11 +8,12 @@ body {
     padding: 0.2em;
     width:100%;
 }
-.column {
+.column{
     display:flex;
     flex: 1;
     border: 1px black solid;
     margin: 0.2em;
+    padding: 0.2em;
     flex-direction: column;
 }
 .col-title {
@@ -38,6 +39,7 @@ body {
 .item-list {
     padding: 0;
     margin: 0.5em 0 0;
+    gap: 0.5em;
 }
 .item-button {
     height: 1.3em;
@@ -52,4 +54,22 @@ body {
 .item-button>img {
     width: 80%;
     height: 80%;
+}
+.attribute-list {
+    padding: 0.5em;
+}
+.default-att-view {
+    color: #555;
+    text-transform: uppercase;
+    padding-right: 1em;
+}
+
+dialog:modal{
+    display:flex;
+    flex-direction: column;
+    padding: 0.5em;
+    gap: 0.5em;
+}
+.dialog-cancel {
+    margin-right: auto;
 }

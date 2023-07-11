@@ -80,14 +80,23 @@ function updateAttributeViews(view) {
     const item = items[view.id];
     var lastExistingNode = null;
     view.attBeingDisplayed = view.attBeingDisplayed || {};
-    for (var attI = visibleAttributes.length-1; attI >= 0; attI --) {
-        var att = visibleAttributes[attI];
+    var visibleAtts = visibleAttributes;
+    if (gm) {
+        visibleAtts = [].concat(visibleAtts);
+        for (var att in item) {
+            if (!visibleAtts.includes(att) && att != "name") {
+                visibleAtts.push(att);
+            }
+        }
+    }
+    for (var attI = visibleAtts.length-1; attI >= 0; attI --) {
+        var att = visibleAtts[attI];
         var attView = view.attElements[att];
         if (attView && !item[att]) {
             view.attListElement.removeChild(attView);
             delete view.attElements[att];
         } else if (!attView && item[att]) {
-            var newAttView = createAttView[att](item[att], item, view.type, view.id);
+            var newAttView = createAttView(att, item[att], item, view.type, view.id);
             view.attListElement.insertBefore(newAttView, lastExistingNode);
             view.attElements[att] = newAttView;
             lastExistingNode = newAttView;
@@ -96,7 +105,7 @@ function updateAttributeViews(view) {
                 if (updateAttView[att]) {
                     updateAttView[att](view.attElements[att], item[att], item, view.type, view.id);
                 } else {
-                    var newAttView = createAttView[att](item[att], item, view.type, view.id);
+                    var newAttView = createAttView(att, item[att], item, view.type, view.id);
                     attView.replace(newAttView);
                     view.attElements[att] = newAttView;
                 }
@@ -168,38 +177,56 @@ function createView(view) {
     return rootElement;
 }
 
-var visibleAttributes = ["description"];
+var visibleAttributes = ["desc", "text"];
 
-const createAttView = {
-    description:function(desc) {
-        const element = document.createElementById("div");
+function createAttView(type, ...args) {
+    if (createAttViewTypes[type]) {
+        return createAttViewTypes[type](...args);
+    } else {
+        const element = document.createElement("span");
+        element.className = "attribute-view default-att-view";
+        element.textContent = type;
+        return element;
+    }
+}
+
+const createAttViewTypes = {
+    desc:function(desc) {
+        const element = document.createElement("p");
         element.className = "attributeView";
         element.textContent = desc;
+        return element;
+    },
+    text:function(text) {
+        const element = document.createElement("p");
+        element.className = "attributeView";
+        element.textContent = "“"+text+"”";
+        return element;
     }
 };
 
 function expandItemView(view) {
     return function(event) {
         event.stopPropagation();
-        view.expanded = !view.expanded;
         var expandButtonImg = event.currentTarget.children[0];
-        if (view.expanded) {
-            if (view.type == "shortInList") {
+        if (view.type == "shortInList") {
+            if (!view.expandedView) {
                 expandButtonImg.src = "/icons/left-arrow.svg";
                 var colView = {type:"root", id:view.id};
                 var col = createView(colView);
                 view.whereToPutColumn.appendChild(col);
                 view.expandedView = colView;
             } else {
-                expandButtonImg.src = "/icons/up-arrow.svg";
-                view.attListElement.hidden = false;
-                updateAttributeViews(view, items[view.id]);
-            }
-        } else {
-            if (view.type == "shortInList") {
                 expandButtonImg.src = "/icons/right-arrow.svg";
                 removeView(view.expandedView);
                 delete view.expandedView;
+            }
+        } else {
+            view.expanded = !view.expanded;
+            if (view.expanded) {
+                expandButtonImg.src = "/icons/up-arrow.svg";
+                view.attListElement.hidden = false;
+                updateAttributeViews(view, items[view.id]);
             } else {
                 expandButtonImg.src = "/icons/down-arrow.svg";
                 view.attListElement.hidden = true;
