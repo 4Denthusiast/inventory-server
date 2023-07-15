@@ -13,6 +13,7 @@
 module Data (
   ID,
   Object(..),
+  Attribute(..),
   AnAtt,
   Item,
   PlayerState(..),
@@ -26,7 +27,6 @@ module Data (
   getAtt,
   getAtt',
   hasAtt,
-  addItem,
   changeItem,
   deinline,
   IOQueue,
@@ -58,7 +58,7 @@ import System.Timeout
 
 type ID = Int
 
-data Object = Commodity String Double | ItemRef ID deriving Show
+data Object = Commodity String Double | ItemRef ID deriving (Show, Eq)
 data ObjectInline = CommodityI String Double | ItemI Item
 
 type Item = [AnAtt]
@@ -73,7 +73,8 @@ data ClientState = ClientState {
   itemUpdateQueue :: IOQueue ID,
   itemsListened :: Set ID,
   clientTimeout :: Int,
-  clientListeningThread :: Maybe ThreadId
+  clientListeningThread :: Maybe ThreadId,
+  clientIsGM :: Bool
 }
 
 data World = World {
@@ -82,11 +83,11 @@ data World = World {
   itemNewness :: Map ID Int,
   playerStates :: Map String PlayerState,
   clientStates :: Map String ClientState,
-  locationList :: [ID]
+  rootsList :: Set ID
 }
 
 emptyWorld :: World
-emptyWorld = World M.empty 0 M.empty M.empty M.empty []
+emptyWorld = World M.empty 0 M.empty M.empty M.empty S.empty
 
 class KnownSymbol s => Attribute (s::Symbol) where
   type AData s :: Type
@@ -97,9 +98,14 @@ class KnownSymbol s => Attribute (s::Symbol) where
 
 newtype SSymbol (s :: Symbol) = SSymbol String --This isn't public in this GHC version, but I need something like it and it doesn't actually matter if it's the same as the library's version.
 data AnAtt where
-  AnAtt :: forall (s::Symbol). (KnownSymbol s, ToJSON (AData s), Attribute s) => SSymbol s -> AData s -> AnAtt
+  AnAtt :: forall (s::Symbol). (KnownSymbol s, ToJSON (AData s), Eq (AData s), Attribute s) => SSymbol s -> AData s -> AnAtt
 $(deriveJSON defaultOptions ''Object)
 $(deriveJSON defaultOptions ''ObjectInline)
+
+instance Eq AnAtt where
+  (AnAtt s0 d0) == (AnAtt s1 d1) = case sameSymbol s0 s1 of
+    Just Refl -> d0 == d1
+    Nothing -> False
 
 instance Attribute "container" where type AData "container" = [Object] --The contents of a container are not attached and can trivially be removed.
 instance Attribute "components" where type AData "components" = [Object] --The components of an item may be hard to remove and may affect its function.
@@ -110,11 +116,13 @@ instance Attribute "desc" where type AData "desc" = String
 instance Attribute "text" where type AData "text" = String
 instance Attribute "recipe" --TODO: Add some representation
 instance Attribute "location"
+instance Attribute "root"
+instance Attribute "soul" where type AData "soul" = String
 instance Attribute ".." where
   type AData ".." = ID
   defaultData = error "There is no default location."
 
-setAtt :: forall s. (Attribute s, ToJSON (AData s)) => AData s -> Item -> Item
+setAtt :: forall s. (Attribute s, ToJSON (AData s), Eq (AData s)) => AData s -> Item -> Item
 setAtt att (AnAtt s' att':item') = case sameSymbol @s undefined s' of
   Just Refl -> AnAtt s' att : item'
   Nothing -> AnAtt s' att' : setAtt @s att item'
@@ -135,7 +143,7 @@ removeAtt (AnAtt s' att':item') = case sameSymbol @s undefined s' of
   Nothing -> AnAtt s' att' : removeAtt @s item'
 removeAtt [] = []
 
-setAtt' :: forall s. (Attribute s, ToJSON (AData s)) => Item -> Item
+setAtt' :: forall s. (Attribute s, ToJSON (AData s), Eq (AData s)) => Item -> Item
 setAtt' = setAtt @s (defaultData @s)
 
 hasAtt :: forall s. Attribute s => Item -> Bool
@@ -150,7 +158,7 @@ instance ToJSON AnAtt where
   toEncodingList = toEncoding . toJSONList --The toEncoding used here is from the ToJSON Value instance rather than this one.
 
 data AttType where
-  AttType :: forall s. (KnownSymbol s, FromJSON (AData s), ToJSON (AData s), Attribute s) => SSymbol s -> AttType
+  AttType :: forall s. (KnownSymbol s, FromJSON (AData s), ToJSON (AData s), Eq (AData s), Attribute s) => SSymbol s -> AttType
 
 instance FromJSON AnAtt where
   parseJSON = error "Deserialising individual attributes is not defined."
@@ -162,7 +170,7 @@ instance FromJSON AnAtt where
                 Nothing -> mempty
               ) attTypes
           attTypes = [attType @"container", attType @"components", attType @"name", attType @"desc", attType @"text", attType @"recipe", attType @"location", attType @".."]
-          attType :: forall s. (FromJSON (AData s), ToJSON (AData s), Attribute s) => AttType
+          attType :: forall s. (FromJSON (AData s), ToJSON (AData s), Eq (AData s), Attribute s) => AttType
           attType = AttType $ SSymbol @s (symbolVal @s undefined)
 
 -- It is assumed that the only case where a client needs to be notified of a new item they don't know to ask for is in routines specifically designed for adding new locations, in which case the notification can be dealt with separately.
@@ -179,6 +187,7 @@ changeItem i it w@World{itemStore = is, itemNewness = times, clientStates = css}
         is' = M.insert i it is
         times' = M.adjust (+1) i times
 
+-- TODO: integrate this with the stuff in Model.
 -- Given an item all of whose contents and components are inline, add it to the world. Optionally give the item being added some location.
 deinline :: Maybe ID -> Item -> World -> (World,ID)
 deinline up it w = (w3,n)

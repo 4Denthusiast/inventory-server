@@ -50,7 +50,7 @@ function addExtraControls(id, nameElement) {
     nameElement.insertAdjacentElement("afterend", button);
     button.addEventListener("click", function(event) {
         event.stopPropagation();
-        setInteractionState("add-attribute", id, true);
+        setInteractionState("add-attribute", "", id, true);
         document.getElementById("add-attribute-details").showModal();
     });
 }
@@ -89,15 +89,24 @@ function addAttSubmit() {
     var value = activeAddAttInput ? activeAddAttInput.value : [];
     var data = {};
     data[type] = value;
-    var message = new XMLHttpRequest();
-    message.open("POST", "/add-attribute");
-    message.setRequestHeader("Content-Type", "application/json");
-    message.send(JSON.stringify([interactionStateData,data]));
+    sendToServer("add-attribute", [interactionStateData, data]);
     setInteractionState("none");
     document.getElementById("add-attribute-details").close();
 }
 
-function addAttCancel() {
+function createContent(id, attached) {
+    return function(event) {
+        if (event.shiftKey) {
+            setInteractionState("createCommodity", "", {id:id, attached:attached}, true);
+            document.getElementById("create-commodity-details").showModal();
+        } else {
+            sendToServer("create-item", [id, attached]);
+        }
+    }
+}
+
+function createCommoditySubmit() {
+    sendToServer("create-commodity", [interactionStateData.id, interactionStateData.attached, document.getElementById("create-commodity-type-input").value, document.getElementById("create-commodity-quantity-input").valueAsNumber]);
     setInteractionState("none");
-    document.getElementById("add-attribute-details").close();
+    document.getElementById("create-commodity-details").close();
 }

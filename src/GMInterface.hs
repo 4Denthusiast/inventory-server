@@ -10,6 +10,7 @@ module GMInterface (
 ) where
 
 import Data
+import Model
 
 import Control.Concurrent.MVar
 import Control.Monad
@@ -22,13 +23,15 @@ import Network.HTTP.Types.Status
 import Network.Wai
 import Servant
 
-type GMAPI = GMPageAPI :<|> CreateLocationAPI :<|> AddAttributeAPI
+type GMAPI = GMPageAPI :<|> CreateLocationAPI :<|> AddAttributeAPI :<|> CreateItemAPI :<|> CreateCommodityAPI
 type GMPageAPI = "gm.html" :> BasicAuth "gm" String :> QueryParam "name" String :> Raw
 type CreateLocationAPI = "create-location" :> ReqBody '[PlainText] String :> PostNoContent
 type AddAttributeAPI = "add-attribute" :> ReqBody '[JSON] (ID,Item) :> PostNoContent
+type CreateItemAPI = "create-item" :> ReqBody '[JSON] (ID,Bool) :> PostNoContent
+type CreateCommodityAPI = "create-commodity" :> ReqBody '[JSON] (ID,Bool,String,Double) :> PostNoContent
 
 gmServer :: MVar World -> Server GMAPI
-gmServer worldVar = gmPageServer worldVar :<|> createLocationServer worldVar :<|> addAttributeServer worldVar
+gmServer worldVar = gmPageServer worldVar :<|> createLocationServer worldVar :<|> addAttributeServer worldVar :<|> createItemServer worldVar :<|> createCommodityServer worldVar
 
 gmPageServer :: MVar World -> Server GMPageAPI
 gmPageServer _ name Nothing = Tagged $ \_ c -> c $ responseLBS seeOther303 [(hLocation, UTF8.fromString $ "/gm.html?name=gm%20"++name)] "" --Make the name available in JS
@@ -39,7 +42,7 @@ gmPageServer worldVar _ (Just name) = Tagged $ \_ c -> do
           Just _ -> return world
           Nothing -> do
             q <- newEmptyQueue
-            return world{clientStates = M.insert name (ClientState q S.empty 0 Nothing) css}
+            return world{clientStates = M.insert name (ClientState q S.empty 0 Nothing True) css}
 
 authCheckContext :: Context '[BasicAuthCheck String]
 authCheckContext = check :. EmptyContext
@@ -48,21 +51,24 @@ authCheckContext = check :. EmptyContext
           _ -> return BadPassword
 
 createLocationServer :: MVar World -> Server CreateLocationAPI
-createLocationServer worldVar name = liftIO $ do
-  i <- modifyMVar worldVar $ \world -> return $ let
-      item = setAtt' @"container" $ setAtt' @"location" $ setAtt @"name" name []
-    in addItem item world
-  publishLocation worldVar i
+createLocationServer worldVar name = do
+  updateWorld worldVar $ addItem (setAtt @"container" [Commodity "fluff" 10, Commodity "DNA" 10.5e-6, Commodity "steel" 20e6, Commodity "focus" 3.14159, Commodity "craving" 1e-6] $ setAtt' @"location" $ setAtt @"name" name [])
   return NoContent
 
-publishLocation :: MVar World -> ID -> IO ()
-publishLocation worldVar i = modifyMVar_ worldVar $ \world -> do
-  forM_ (M.toList $ clientStates world) $ \(name, state) -> if take 3 name == "gm " then enqueue (itemUpdateQueue state) i else return ()
-  return world{locationList = i:locationList world}
-
 addAttributeServer :: MVar World -> Server AddAttributeAPI
-addAttributeServer worldVar (i,[att]) = (liftIO $ modifyMVar_ worldVar $ \world -> case M.lookup i (itemStore world) of
-    Nothing -> return world
-    Just item -> changeItem i (setAnAtt att item) world --TODO: Allow other updates based on this.
-  ) >> return NoContent
+addAttributeServer worldVar (i,[att]) = updateWorld worldVar $ do
+  mItem <- getItem i
+  forM mItem $ \item -> setItem (setAnAtt att item) i
+  return NoContent
 addAttributeServer _ _ = error "wrong number of attributes received in add-attribute."
+
+createItemServer :: MVar World -> Server CreateItemAPI
+createItemServer worldVar (i,attached) = updateWorld worldVar $ do
+  newId <- addItem $ setAtt @".." i []
+  (if attached then modifyItemAttribute @"components" else modifyItemAttribute @"container") (++[ItemRef newId]) i
+  return NoContent
+
+createCommodityServer :: MVar World -> Server CreateCommodityAPI
+createCommodityServer worldVar (i,attached,commodityType,quantity) = do
+  updateWorld worldVar $ (if attached then modifyItemAttribute @"components" else modifyItemAttribute @"container") (++[Commodity commodityType quantity]) i
+  return NoContent

@@ -42,14 +42,18 @@
                 <h2 class="col-title">Recipes</h2>
             </div>
         </div>
+        <div id="mode-description">
+            <span id="mode-description-text"></span>
+            <button onclick="setInteractionState('none')">Cancel</button>
+        </div>
         <dialog id="add-attribute-details">
-            <h2 class="col-title">Add Attribute</h2>
+            <h2 class="dialog-title">Add attribute</h2>
             <label>Attribute type: <input list="attribute-type-list" id="add-att-type-input" oninput="updateAddAttTypeInput()"></label>
             <div id="add-att-input-container">
                 <textarea id="add-att-text-input" hidden></textarea>
             </div>
             <div>
-                <button onclick="addAttCancel()" class="dialog-cancel">Cancel</button>
+                <button onclick="dialogCancel()" class="dialog-cancel">Cancel</button>
                 <button id="add-att-submit" onclick="addAttSubmit()">Add</button>
             </div>
             <datalist id="attribute-type-list">
@@ -58,6 +62,26 @@
                 <option value="container">
                 <option value="components">
             </datalist>
+        </dialog>
+        <dialog id="commodity-amount-dialog">
+            <h2 class="dialog-title">Amount to move</h2>
+            <input id="commodity-amount-slider" type="range" min=0 step=any oninput="document.getElementById('commodity-amount-number').value = event.currentTarget.value">
+            <div><input id="commodity-amount-number" type="number" min=0 oninput="document.getElementById('commodity-amount-slider').value = event.currentTarget.value">
+            <span id="commodity-amount-context"></span>
+            <div>
+                <button onclick="dialogCancel()" class="dialog-cancel">Cancel</button>
+                <button id="commodity-amount-submit" onclick="commodityAmountSubmit()">Select</button>
+            </div>
+        </dialog>
+        <dialog id="create-commodity-details">
+            <h2 class="dialog-title">Create commodity</h2>
+            <label>Commodity type: <input id="create-commodity-type-input"/><label><br/>
+            <label>Quantity: <input id="create-commodity-quantity-input" type="number" min=0/></label>
+            <div width="20em">Note, quantities for physical substances are always in grams, and for other substances they are in whatever units it displays in without a prefix.</div>
+            <div>
+                <button onclick="dialogCancel()" class="dialog-cancel">Cancel</button>
+                <button onclick="createCommoditySubmit()">Submit</button>
+            </div>
         </dialog>
     </body>
 </html>
