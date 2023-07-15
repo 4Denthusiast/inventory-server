@@ -98,16 +98,16 @@ function updateAttributeViews(view) {
             view.attListElement.removeChild(attView);
             delete view.attElements[att];
         } else if (!attView && item[att]) {
-            var newAttView = createAttView(att, item[att], item, view.type, view.id);
+            var newAttView = createAttView(att, item[att], view.id, item, view.type);
             view.attListElement.insertBefore(newAttView, lastExistingNode);
             view.attElements[att] = newAttView;
             lastExistingNode = newAttView;
         } else if (attView && item[att]) {
             if (!deepEquals(view.attBeingDisplayed[att], item[att])) {
                 if (updateAttView[att]) {
-                    updateAttView[att](view.attElements[att], item[att], item, view.type, view.id);
+                    updateAttView[att](view.attElements[att], item[att], view.id, item, view.type);
                 } else {
-                    var newAttView = createAttView(att, item[att], item, view.type, view.id);
+                    var newAttView = createAttView(att, item[att], view.id, item, view.type);
                     attView.replaceWith(newAttView);
                     view.attElements[att] = newAttView;
                 }
@@ -161,6 +161,7 @@ function createView(view) {
         }
         view.nameElement = getElement("item-view-name");
         view.nameElement.textContent = items[view.id].name || "[Unnamed Item]";
+        makeAttViewEditable(view.nameElement, "name", view.id);
         if (gm) {
             addExtraControls(view.id, view.nameElement);
         }
@@ -240,16 +241,18 @@ function createAttView(type, ...args) {
 }
 
 const createAttViewTypes = {
-    desc:function(desc) {
+    desc:function(desc, id) {
         const element = document.createElement("p");
-        element.className = "attributeView";
+        element.className = "attribute-view";
         element.textContent = desc;
+        makeAttViewEditable(element, "desc", id);
         return element;
     },
-    text:function(text) {
+    text:function(text, id) {
         const element = document.createElement("p");
-        element.className = "attributeView";
-        element.textContent = "“"+text+"”";
+        element.className = "attribute-view text-attribute";
+        element.textContent = text;
+        makeAttViewEditable(element, "text", id);
         return element;
     },
     container:createContainerView(false),
@@ -257,7 +260,7 @@ const createAttViewTypes = {
 };
 
 function createContainerView(attached) {
-    return function(content, item, view, id) {
+    return function(content, id, item, view) {
         const outerElement = document.createElement("div");
         outerElement.className = "list-attribute";
         outerElement.appendChild(document.createElement("h3"));
@@ -460,4 +463,16 @@ function dialogCancel() {
     for (var i = 0; i < dialogs.length; i++) {
         dialogs[i].close();
     }
+}
+
+// TODO: Check that this doesn't mess up if focus is lost due to an update arriving from the server.
+function makeAttViewEditable(element, attribute, id) {
+    element.contentEditable = "true";
+    element.addEventListener("focusout", function(event) {
+        if (element.textContent != items[id][attribute]) {
+            var data = {};
+            data[attribute] = element.textContent;
+            sendToServer("add-attribute", [id, data]);
+        }
+    });
 }

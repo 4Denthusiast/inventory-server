@@ -79,6 +79,12 @@ ul {
     margin:0 0 0 0.4em;
     display: flex;
 }
+.text-attribute::before {
+    content: "“";
+}
+.text-attribute::after {
+    content: "”";
+}
 
 
 dialog:modal{

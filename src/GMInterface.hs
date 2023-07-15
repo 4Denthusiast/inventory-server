@@ -52,7 +52,7 @@ authCheckContext = check :. EmptyContext
 
 createLocationServer :: MVar World -> Server CreateLocationAPI
 createLocationServer worldVar name = do
-  updateWorld worldVar $ addItem (setAtt @"container" [Commodity "fluff" 10, Commodity "DNA" 10.5e-6, Commodity "steel" 20e6, Commodity "focus" 3.14159, Commodity "craving" 1e-6] $ setAtt' @"location" $ setAtt @"name" name [])
+  updateWorld worldVar $ addItem (setAtt' @"container" $ setAtt' @"location" $ setAtt @"name" name [])
   return NoContent
 
 addAttributeServer :: MVar World -> Server AddAttributeAPI
