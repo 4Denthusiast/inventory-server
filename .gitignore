@@ -2,3 +2,4 @@
 *.lock
 *.socket
 inventory-server.cabal
+upload.sh
