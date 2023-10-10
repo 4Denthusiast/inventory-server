@@ -18,7 +18,6 @@ import Control.Monad
 import Control.Monad.Error.Class
 import Control.Monad.IO.Class
 import Data.Char
-import Data.List (delete)
 import qualified Data.Map.Lazy as M
 import Data.Maybe
 import qualified Data.Set as S
@@ -53,9 +52,24 @@ playerServer :: MVar World -> Server PlayerAPI
 playerServer worldVar = addCharacterServer worldVar :<|> itemUpdatesServer worldVar :<|> changeListeningServer worldVar :<|> moveItemServer worldVar :<|> moveCommodityServer worldVar
 
 addCharacterServer :: MVar World -> Server AddCharacterAPI
-addCharacterServer worldVar char = liftIO (putStrLn (show char)) >> return (addHeader url ("Please proceed to "++url))
-  where simpleName = map toLower $ takeWhile (/=' ') $ csName char --TODO: sanitise this more, and make it explicitly avoid overlaps.
-        url = "/player.html?name="++simpleName
+addCharacterServer worldVar char = do
+  name <- addCharacter worldVar char
+  let url = "/player.html?name="++name
+  return (addHeader url ("Please proceed to "++url))
+
+addCharacter :: (MonadIO m) => MVar World -> CharacterSubmission -> m String
+addCharacter worldVar char = do
+    name <- findName (name0:map (\n -> name0 ++ show n) [0 :: Int ..])
+    liftIO $ modifyMVar_ worldVar $ \world -> return world{playerStates = M.insert name (PlayerState (-1)) (playerStates world)}
+    updateWorld worldVar $ do
+      body <- addItem $ setAtt @"soul" name []
+      mSpawn <- spawnPoint <$> getWorld
+      forM_ mSpawn $ modifyItemAttribute @"container" (++[ItemRef body])
+    return name
+  where name0 = map toLower $ takeWhile (/=' ') $ csName char --TODO: sanitise this more.
+        findName (n:ns) = do
+          success <- addClient worldVar n False
+          if success then return n else findName ns
 
 itemUpdatesServer :: MVar World -> Server ItemUpdatesAPI
 itemUpdatesServer worldVar (Just name) clientWants = do
@@ -84,7 +98,11 @@ changeListening worldVar name clientWants = do
   case mWorldClient of
     Nothing -> throwError $ ServerError 422 "Unprocessable Entity" "Could not process request due to unrecognised value of \"name\" parameter." []
     Just (world, clientState) -> do --The outdated version of world is used here, but this does not affect any of the values used.
-      let outdated = map fst (filter (\(i,t) -> maybe False (>t) $ M.lookup i $ itemNewness world) clientWants) ++ if not (clientIsGM clientState) then [] else filter (\i -> not $ S.member i $ S.fromList $ map fst clientWants) (S.toList $ rootsList world)
+      let mPlayer = M.lookup name $ playerStates world
+      let outdated = map fst (filter (\(i,t) -> maybe False (>t) $ M.lookup i $ itemNewness world) clientWants) ++ filter (\i -> not $ S.member i $ S.fromList $ map fst clientWants) (case mPlayer of
+              Nothing -> S.toList $ rootsList world
+              Just (PlayerState soul) -> filter (>=0) [soul]
+            )
       liftIO $ forM_ outdated $ enqueue (itemUpdateQueue clientState)
       return clientState
 
@@ -94,9 +112,7 @@ moveItemServer worldVar (target, destination) = updateWorld worldVar $ do
     mTargetItem <- getItem target
     hasLoop <- checkLoop destination
     case (hasDestination, hasLoop, mTargetItem) of
-      (True, False, Just targetItem) -> do
-        setItemAttribute @".." destination target
-        case getAtt' @".." targetItem of {Just source -> modifyItemAttribute' @"container" (fmap (delete (ItemRef target))) source >> modifyItemAttribute' @"components" (fmap (delete (ItemRef target))) source; Nothing -> return ()}
+      (True, False, Just _) -> do
         modifyItemAttribute @"container" (++[ItemRef target]) destination
         return NoContent
       _ -> return NoContent -- Fail silently because it might just be that the client hasn't received some relevant update yet.

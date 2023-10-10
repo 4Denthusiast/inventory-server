@@ -67,6 +67,7 @@ function updateAddAttTypeInput() {
             break;
         case "container":
         case "components":
+        case "spawnPoint":
             control = "none";
     }
     document.getElementById("add-att-submit").disabled = control === null;

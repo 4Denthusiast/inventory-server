@@ -1,6 +1,7 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeOperators #-}
 module GMInterface (
@@ -36,13 +37,8 @@ gmServer worldVar = gmPageServer worldVar :<|> createLocationServer worldVar :<|
 gmPageServer :: MVar World -> Server GMPageAPI
 gmPageServer _ name Nothing = Tagged $ \_ c -> c $ responseLBS seeOther303 [(hLocation, UTF8.fromString $ "/gm.html?name=gm%20"++name)] "" --Make the name available in JS
 gmPageServer worldVar _ (Just name) = Tagged $ \_ c -> do
-    liftIO $ modifyMVar_ worldVar $ addGM
+    addClient worldVar name True
     c $ responseFile status200 [(hContentType, "text/html")] "./pages/gm.html" Nothing
-  where addGM world@World{clientStates = css} = case M.lookup name css of
-          Just _ -> return world
-          Nothing -> do
-            q <- newEmptyQueue
-            return world{clientStates = M.insert name (ClientState q S.empty 0 Nothing True) css}
 
 authCheckContext :: Context '[BasicAuthCheck String]
 authCheckContext = check :. EmptyContext
@@ -56,10 +52,7 @@ createLocationServer worldVar name = do
   return NoContent
 
 addAttributeServer :: MVar World -> Server AddAttributeAPI
-addAttributeServer worldVar (i,[att]) = updateWorld worldVar $ do
-  mItem <- getItem i
-  forM mItem $ \item -> setItem (setAnAtt att item) i
-  return NoContent
+addAttributeServer worldVar (i,[AnAtt @s _ att]) = updateWorld worldVar (setItemAttribute @s att i) >> return NoContent
 addAttributeServer _ _ = error "wrong number of attributes received in add-attribute."
 
 createItemServer :: MVar World -> Server CreateItemAPI

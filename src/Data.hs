@@ -14,7 +14,7 @@ module Data (
   ID,
   Object(..),
   Attribute(..),
-  AnAtt,
+  AnAtt(..),
   Item,
   PlayerState(..),
   ClientState(..),
@@ -83,11 +83,12 @@ data World = World {
   itemNewness :: Map ID Int,
   playerStates :: Map String PlayerState,
   clientStates :: Map String ClientState,
-  rootsList :: Set ID
+  rootsList :: Set ID,
+  spawnPoint :: Maybe ID
 }
 
 emptyWorld :: World
-emptyWorld = World M.empty 0 M.empty M.empty M.empty S.empty
+emptyWorld = World M.empty 0 M.empty M.empty M.empty S.empty Nothing
 
 class KnownSymbol s => Attribute (s::Symbol) where
   type AData s :: Type
@@ -118,6 +119,7 @@ instance Attribute "recipe" --TODO: Add some representation
 instance Attribute "location"
 instance Attribute "root"
 instance Attribute "soul" where type AData "soul" = String
+instance Attribute "spawnPoint"
 instance Attribute ".." where
   type AData ".." = ID
   defaultData = error "There is no default location."
@@ -169,7 +171,7 @@ instance FromJSON AnAtt where
                 Just Refl -> AnAtt p' <$> parseJSON v
                 Nothing -> mempty
               ) attTypes
-          attTypes = [attType @"container", attType @"components", attType @"name", attType @"desc", attType @"text", attType @"recipe", attType @"location", attType @".."]
+          attTypes = [attType @"container", attType @"components", attType @"name", attType @"desc", attType @"text", attType @"recipe", attType @"location", attType @"spawnPoint", attType @".."]
           attType :: forall s. (FromJSON (AData s), ToJSON (AData s), Eq (AData s), Attribute s) => AttType
           attType = AttType $ SSymbol @s (symbolVal @s undefined)
 
