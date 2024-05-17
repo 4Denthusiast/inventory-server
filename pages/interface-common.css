@@ -79,7 +79,7 @@ ul {
     border-left: 1px solid black;
     flex-direction: column;
 }
-.list-attribute>h3 {
+h3 {
     margin:0 0 0 0.4em;
     display: flex;
 }

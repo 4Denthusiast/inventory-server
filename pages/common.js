@@ -152,22 +152,26 @@ function updateAttributeViews(view) {
     for (var attI = visibleAtts.length-1; attI >= 0; attI --) {
         var att = visibleAtts[attI];
         var attView = view.attElements[att];
-        if (attView && !item[att]) {
+        if (attView && !(att in item)) {
             view.attListElement.removeChild(attView);
             delete view.attElements[att];
-        } else if (!attView && item[att]) {
+        } else if (!attView && att in item) {
             var newAttView = createAttView(att, item[att], view.id, item, view.type);
-            view.attListElement.insertBefore(newAttView, lastExistingNode);
-            view.attElements[att] = newAttView;
-            lastExistingNode = newAttView;
-        } else if (attView && item[att]) {
+            if (newAttView) {
+                view.attListElement.insertBefore(newAttView, lastExistingNode);
+                view.attElements[att] = newAttView;
+                lastExistingNode = newAttView;
+            }
+        } else if (attView && att in item) {
             if (!deepEquals(view.attBeingDisplayed[att], item[att])) {
                 if (updateAttView[att]) {
                     updateAttView[att](view.attElements[att], item[att], view.id, item, view.type);
                 } else {
                     var newAttView = createAttView(att, item[att], view.id, item, view.type);
-                    attView.replaceWith(newAttView);
-                    view.attElements[att] = newAttView;
+                    if (newAttView) {
+                        attView.replaceWith(newAttView);
+                        view.attElements[att] = newAttView;
+                    }
                 }
             }
             lastExistingNode = view.attElements[att];
@@ -199,6 +203,7 @@ function createView(view) {
                 enclosingElement.innerHTML = '<div class="item-view"><div class="item-view-header"><div class="item-view-name"></div><button class="expand-button item-button" title="expand item view"><img src="/icons/right-arrow.svg" alt="expand"/></button></div></div>';
                 break;
             case "content":
+            case "..":
                 enclosingElement.innerHTML = '<div class="item-view"><div class="item-view-header"><div class="item-view-name"></div><button class="remove-button item-button" title="move item"><img src="/icons/hand.png" alt="move"/></button><button class="expand-button item-button" title="expand item view"><img src="/icons/down-arrow.svg" alt="expand"/></button></div><ul class="attribute-list" hidden></ul></div>';
                 break;
             case "component":
@@ -234,6 +239,9 @@ function createView(view) {
             expandButton.addEventListener("click", expandItemView(view));
         }
         var removeButton = getElement("remove-button");
+        if (view.type == ".." && !gm) {
+            removeButton.parentNode.removeChild(removeButton);
+        }
         if (removeButton) {
             removeButton.addEventListener("click", moveItem(view.id, view.type == "component"));
         }
@@ -289,7 +297,7 @@ function decomposeUnits(value, commodityType) {
     return {mantissa:mantissa, unit:prefix+baseUnit, factor:prefixFactor};
 }
 
-var visibleAttributes = ["desc", "text", "container", "components"];
+var visibleAttributes = ["desc", "text", "container", "components", ".."];
 var selfVisibleAttributes = visibleAttributes.filter(a => a != "container"); //"container" must be removed, not added, in order to keep the correct order.
 
 const updateAttView = {};
@@ -321,7 +329,21 @@ const createAttViewTypes = {
         return element;
     },
     container:createContainerView(false),
-    components:createContainerView(true)
+    components:createContainerView(true),
+    "..":function(upId, id, item, viewType) {
+        if (viewType != "root") return;
+        const element = document.createElement("div");
+        element.style = "flex-direction:column;";
+        element.appendChild(document.createElement("h3"));
+        element.children[0].textContent = "In:";
+        const innerView = {type:"..", id:upId};
+        element.appendChild(createView(innerView));
+        if (innerView.loading) {
+            listenList[upId] = -1;
+            sendUpdatedListeningList;
+        }
+        return element;
+    }
 };
 
 function createContainerView(attached) {
