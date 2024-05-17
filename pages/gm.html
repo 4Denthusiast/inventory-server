@@ -7,9 +7,6 @@
         <script src="/gm.js" defer></script>
         <link href="interface-common.css" rel="stylesheet"/>
         <style>
-            div {
-                display:flex;
-            }
             .tab {
                 flex-grow: 1;
             }
@@ -35,6 +32,8 @@
         <div class="tab" id="players">
             <div id="players-column" class="column index-column">
                 <h2 class="col-title">Players</h2>
+                <ul class="item-list" id="players-list">
+                </ul>
             </div>
         </div>
         <div class="tab" id="recipes">

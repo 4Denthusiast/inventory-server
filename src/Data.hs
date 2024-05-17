@@ -7,12 +7,14 @@
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 module Data (
   ID,
   Object(..),
+  ObjectInline(..),
   Attribute(..),
   AnAtt(..),
   Item,
@@ -28,7 +30,6 @@ module Data (
   getAtt',
   hasAtt,
   changeItem,
-  deinline,
   IOQueue,
   newEmptyQueue,
   enqueue,
@@ -108,6 +109,8 @@ instance Eq AnAtt where
     Just Refl -> d0 == d1
     Nothing -> False
 
+deriving instance Eq ObjectInline
+
 instance Attribute "container" where type AData "container" = [Object] --The contents of a container are not attached and can trivially be removed.
 instance Attribute "components" where type AData "components" = [Object] --The components of an item may be hard to remove and may affect its function.
 instance Attribute "containerInline" where type AData "containerInline" = [ObjectInline]
@@ -120,6 +123,7 @@ instance Attribute "location"
 instance Attribute "root"
 instance Attribute "soul" where type AData "soul" = String
 instance Attribute "spawnPoint"
+instance Attribute "origin" where type AData "origin" = String --The thing, usually a person, that this was originally part of
 instance Attribute ".." where
   type AData ".." = ID
   defaultData = error "There is no default location."
@@ -171,7 +175,7 @@ instance FromJSON AnAtt where
                 Just Refl -> AnAtt p' <$> parseJSON v
                 Nothing -> mempty
               ) attTypes
-          attTypes = [attType @"container", attType @"components", attType @"name", attType @"desc", attType @"text", attType @"recipe", attType @"location", attType @"spawnPoint", attType @".."]
+          attTypes = [attType @"container", attType @"components", attType @"name", attType @"desc", attType @"text", attType @"recipe", attType @"location", attType @"root", attType @"soul", attType @"spawnPoint", attType @".."]
           attType :: forall s. (FromJSON (AData s), ToJSON (AData s), Eq (AData s), Attribute s) => AttType
           attType = AttType $ SSymbol @s (symbolVal @s undefined)
 
@@ -188,25 +192,6 @@ changeItem i it w@World{itemStore = is, itemNewness = times, clientStates = css}
   where queueNotifications = forM css $ \ClientState{itemUpdateQueue = q, itemsListened = list} -> if S.member i list then enqueue q i else return ()
         is' = M.insert i it is
         times' = M.adjust (+1) i times
-
--- TODO: integrate this with the stuff in Model.
--- Given an item all of whose contents and components are inline, add it to the world. Optionally give the item being added some location.
-deinline :: Maybe ID -> Item -> World -> (World,ID)
-deinline up it w = (w3,n)
-  where it1 = case up of
-          Nothing -> it
-          Just up' -> setAtt @".." up' it
-        (it2,w1) = case getAtt' @"containerInline" it1 of
-          Nothing -> (it1,w)
-          Just c -> let (w',c') = insertContents w c in (setAtt @"container" c' $ removeAtt @"containerInline" it1, w')
-        (it3,w2) = case getAtt' @"componentsInline" it2 of
-          Nothing -> (it2,w1)
-          Just c -> let (w',c') = insertContents w1 c in (setAtt @"components" c' $ removeAtt @"componentsInline" it2, w')
-        insertContents = mapAccumL (\w' o -> case o of
-            ItemI i -> ItemRef <$> deinline (Just n) i w'
-            CommodityI t q -> (w',Commodity t q)
-          )
-        (w3,n) = addItem it3 w2
 
 newEmptyQueue :: IO (IOQueue a)
 newEmptyQueue = IOQueue <$> newEmptyMVar

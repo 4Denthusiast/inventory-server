@@ -127,14 +127,24 @@ areAttsChanged (SomeAttributes atts0) atts1 = any (flip elem atts0) atts1
 -- This should be idempotent unless the world changes in between. It mustn't depend on the value of ..
 consistencify :: AttChangeList -> ID -> Item -> WorldState Item
 consistencify changes i item = foldr runCheck (return item) [
-    (checkComponents,["components"]),
-    (checkContents,["container"]),
+    (checkComponents,["components","componentsInline"]),
+    (checkContents,["container","containerInline"]),
     (checkSpawnPoint,["spawnPoint"]),
     (checkPlayerSoul,["soul"]),
-    (checkRoot,["location","soul","root"])
+    (checkRoot,["location","soul","root"]),
+    (checkComponentsInline,["componentsInline"]),
+    (checkContainerInline,["containerInline"])
   ]
   where runCheck (f,atts) it | areAttsChanged changes atts = f =<< it
         runCheck _ it        | otherwise = it
+        checkComponentsInline it = case getAtt' @"componentsInline" it of
+          Nothing -> return it
+          Just ci -> (\c -> setAtt @"components" (getAtt @"components" it ++ c) $ removeAtt @"componentsInline" it) <$> mapM deinline ci
+        checkContainerInline it = case getAtt' @"containerInline" it of
+          Nothing -> return it
+          Just ci -> (\c -> setAtt @"container" (getAtt @"container" it ++ c) $ removeAtt @"containerInline" it) <$> mapM deinline ci
+        deinline (CommodityI n x) = return (Commodity n x)
+        deinline (ItemI it') = ItemRef <$> addItem it'
         checkRoot it = do
           isRoot <- if hasAtt @"location" it then return True else
             case getAtt' @"soul" it of 

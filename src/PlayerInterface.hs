@@ -18,6 +18,7 @@ import Control.Monad
 import Control.Monad.Error.Class
 import Control.Monad.IO.Class
 import Data.Char
+import Data.List (union)
 import qualified Data.Map.Lazy as M
 import Data.Maybe
 import qualified Data.Set as S
@@ -32,7 +33,9 @@ data CharacterSubmission = CharacterSubmission {
   csMuscle :: Double,
   csFat :: Double,
   csImpulse :: Double,
-  csEmpathy :: Double
+  csEmpathy :: Double,
+  csImprov :: Double,
+  csExpertise :: Int
 } deriving (Generic, Show)
 
 instance FromForm CharacterSubmission
@@ -62,7 +65,7 @@ addCharacter worldVar char = do
     name <- findName (name0:map (\n -> name0 ++ show n) [0 :: Int ..])
     liftIO $ modifyMVar_ worldVar $ \world -> return world{playerStates = M.insert name (PlayerState (-1)) (playerStates world)}
     updateWorld worldVar $ do
-      body <- addItem $ setAtt @"soul" name []
+      body <- addItem $ makeBody name char
       mSpawn <- spawnPoint <$> getWorld
       forM_ mSpawn $ modifyItemAttribute @"container" (++[ItemRef body])
     return name
@@ -70,6 +73,77 @@ addCharacter worldVar char = do
         findName (n:ns) = do
           success <- addClient worldVar n False
           if success then return n else findName ns
+
+makeBody :: String -> CharacterSubmission -> Item
+makeBody name CharacterSubmission{
+    csName = fullName,
+    csDesc = desc,
+    csTall = tallScore,
+    csMuscle = muscleScore,
+    csFat = fatScore,
+    csImpulse = impulseScore,
+    csEmpathy = empathyScore,
+    csImprov = improvScore,
+    csExpertise = expertiseIndex
+  } = setAtt @"name" fullName $
+      setAtt @"desc" desc $
+      setAtt @"containerInline" [
+        ItemI $
+        setAtt @"name" "Clothing" $
+        setAtt @"desc" ("Whatever clothing "++fullName++" happened to be wearing upon arrival.") $
+        setAtt @"componentsInline" [
+          CommodityI "fibre" 2000 --TODO: customise the weight of the clothing based on how big the character is.
+        ] []
+      ] $
+      setAtt @"componentsInline" [
+        ItemI $
+        setAtt @"name" "Head" $
+        setAtt @"origin" fullName $
+        setAtt @"componentsInline" [
+          ItemI $
+          setAtt @"name" "Brain" $
+          setAtt @"origin" fullName $
+          setAtt @"componentsInline" [
+            --nerves
+            mind
+          ] []
+          --mouth
+          --eye
+          --eye
+          --nose
+          --ear
+          --ear
+          --bone
+          --meat
+          --blood
+          --sinew
+          --nerves
+          --fat
+          --hair
+        ] []
+        --torso
+        --arm
+        --arm
+        --leg
+        --leg
+      ] []
+  where mind = ItemI $
+               setAtt @"name" "Mind" $
+               setAtt @"origin" fullName $
+               setAtt @"componentsInline" [
+                 ItemI $
+                 setAtt @"name" "Transcendent Self" $
+                 setAtt @"origin" fullName $
+                 setAtt @"soul" name []
+                 --instinct
+                 --passions
+                 --conscience
+                 --rationality
+                 --habit
+                 --knowledge
+                 --sensorium
+                 --cortical homunculus
+               ] []
 
 itemUpdatesServer :: MVar World -> Server ItemUpdatesAPI
 itemUpdatesServer worldVar (Just name) clientWants = do
@@ -113,7 +187,7 @@ moveItemServer worldVar (target, destination) = updateWorld worldVar $ do
     hasLoop <- checkLoop destination
     case (hasDestination, hasLoop, mTargetItem) of
       (True, False, Just _) -> do
-        modifyItemAttribute @"container" (++[ItemRef target]) destination
+        modifyItemAttribute @"container" (union [ItemRef target]) destination
         return NoContent
       _ -> return NoContent -- Fail silently because it might just be that the client hasn't received some relevant update yet.
   where checkLoop i | i == target = return True

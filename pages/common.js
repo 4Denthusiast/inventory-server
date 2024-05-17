@@ -1,6 +1,7 @@
 var items = {};
 var listenList = {};
 var itemViews = {};
+var playerCharacters = {};
 var itemListenerRequest = null;
 var username = new URL(document.location).searchParams.get("name");
 
@@ -60,14 +61,23 @@ function newItemHandler(id, oldItem, newItem) {
     if (!itemViews[id]) {
         itemViews[id] = [];
     }
-    for (var viewI in itemViews[id]) {
+    var isPlayerSoul = newItem && "soul" in newItem && (newItem.soul == username || newItem.root && gm);
+    if (isPlayerSoul && (!(newItem.soul in playerCharacters) || !(0 in playerCharacters[newItem.soul]) || playerCharacters[newItem.soul][0].id != id)) {
+        clearPlayerCharacter(newItem.soul, 0);
+        addPCView(id, newItem.soul);
+    }
+    for (var viewI in itemViews[id]) {//TODO: check whether it matters if new views are ignored in this loop. It's nondeterministic behaviour so I should probably change this to a numeric loop, but I'm not sure whether I've relied on them being ignored, which is the default.
         var view = itemViews[id][viewI];
         if (!newItem) {
             alert("A watched item disappeared. The code to deal with this hasn't been written yet.");//TODO
         } else if (view.loading) {
             view.element.replaceWith(createView(view, newItem));
+        } else if (view.type == "pcChain") {
+            checkPCView(view);
         } else {
-            view.nameElement.textContent = newItem.name || "[Unnamed Item]";
+            if (view.nameElement) {
+                view.nameElement.textContent = newItem.name || "[Unnamed Item]";
+            }
             if (view.expanded) {
                 updateAttributeViews(view, oldItem, newItem);
             }
@@ -76,6 +86,50 @@ function newItemHandler(id, oldItem, newItem) {
     specificNewItemHandler(id, oldItem, newItem);
 }
 var specificNewItemHandler = null; // To be set by player.js or gm.js
+
+function addPCView(id, name) {
+    playerCharacters[name] = playerCharacters[name] || [];
+    var view = {id:id,type:"pcChain",player:name,level:playerCharacters[name].length};
+    itemViews[id] = itemViews[id] || [];
+    itemViews[id].push(view);
+    playerCharacters[name].push(view);
+}
+
+function checkPCView(view) {
+    var item = items[view.id];
+    if (!(view.id in listenList)) {
+        listenList[view.id] = -1;
+        sendUpdatedListeningList();
+    }
+    if (item) {
+        var nextUp = item[".."];
+        var limit = !(".." in item) || view.level > 0 && !(item.components && item.components.some(x => x.tag == "ItemRef" && x.contents == playerCharacters[view.player][view.level - 1].id));
+        view.limit = limit;
+        if (playerCharacters[view.player].length > view.level + 1 && (limit || playerCharacters[view.player][view.level + 1].id != nextUp)) {
+            clearPlayerCharacter(view.player, view.level + 1);
+        }
+        if (!limit && playerCharacters[view.player].length <= view.level + 1) {
+            addPCView(nextUp, view.player);
+            checkPCView(playerCharacters[view.player][view.level + 1]);
+        }
+        specificCheckPCView(view);
+        if (view.level > 0) {
+            specificCheckPCView(playerCharacters[view.player][view.level - 1]);
+        }
+    }
+}
+var specificCheckPCView = null; // To be set by player.js or gm.js
+
+function clearPlayerCharacter(name, level) {
+    if (name in playerCharacters) {
+        while (playerCharacters[name].length > level) {
+            var view = playerCharacters[name].pop();
+            if (view.dependentView) removeView(view.dependentView);
+            if (view.inventoryView) removeView(view.inventoryView);
+            removeView(view);
+        }
+    }
+}
 
 function updateAttributeViews(view) {
     //TODO: Check there are no cases where this can be called with a null item.
@@ -90,6 +144,10 @@ function updateAttributeViews(view) {
                 visibleAtts.push(att);
             }
         }
+    } else if (view.type == "self") {
+        visibleAtts = selfVisibleAttributes;
+    } else if (view.type == "inventory") {
+        visibleAtts = ["container"];
     }
     for (var attI = visibleAtts.length-1; attI >= 0; attI --) {
         var att = visibleAtts[attI];
@@ -149,6 +207,10 @@ function createView(view) {
             case "root":
                 enclosingElement.innerHTML = '<div class="item-view root-item-view column"><div class="item-view-header"><h2 class="item-view-name col-title"></h2></div><ul class="attribute-list"></ul></div>';
                 break;
+            case "self":
+            case "inventory":
+                enclosingElement.innerHTML = '<div class="item-view root-item-view column"><ul class="attribute-list"></ul></div>';
+                break;
         }
         rootElement = enclosingElement.children[0];
     }
@@ -160,10 +222,12 @@ function createView(view) {
             return rootElement.getElementsByClassName(name)[0];
         }
         view.nameElement = getElement("item-view-name");
-        view.nameElement.textContent = items[view.id].name || "[Unnamed Item]";
-        makeAttViewEditable(view.nameElement, "name", view.id);
-        if (gm) {
-            addExtraControls(view.id, view.nameElement);
+        if (view.nameElement) {
+            view.nameElement.textContent = items[view.id].name || "[Unnamed Item]";
+            makeAttViewEditable(view.nameElement, "name", view.id);
+            if (gm) {
+                addExtraControls(view.id, view.nameElement);
+            }
         }
         var expandButton = getElement("expand-button");
         if (expandButton) {
@@ -175,7 +239,7 @@ function createView(view) {
         }
         view.attListElement = getElement("attribute-list");
         view.attElements = {};
-        view.expanded = view.type == "root";
+        view.expanded = view.type == "root" || view.type == "self" || view.type == "inventory";
         if (view.expanded) {
             updateAttributeViews(view);
         }
@@ -225,7 +289,8 @@ function decomposeUnits(value, commodityType) {
     return {mantissa:mantissa, unit:prefix+baseUnit, factor:prefixFactor};
 }
 
-var visibleAttributes = ["desc", "text", "container"];
+var visibleAttributes = ["desc", "text", "container", "components"];
+var selfVisibleAttributes = visibleAttributes.filter(a => a != "container"); //"container" must be removed, not added, in order to keep the correct order.
 
 const updateAttView = {};
 
@@ -261,15 +326,8 @@ const createAttViewTypes = {
 
 function createContainerView(attached) {
     return function(content, id, item, view) {
-        const outerElement = document.createElement("div");
-        outerElement.className = "list-attribute";
-        outerElement.appendChild(document.createElement("h3"));
-        outerElement.children[0].textContent = attached ? "Components:" : "Contents:";
-        if (gm) {
-            outerElement.children[0].innerHTML += '<button class="add-content-button item-button" title="Add item here, or shift-click to add commodity.">+</button>';
-            outerElement.children[0].children[0].addEventListener("click", createContent(id, attached));
-        }
         const listElement = document.createElement("ul");
+        var element = listElement;
         var needsNewItems = false;
         for (var i in content) {
             var data = content[i].contents;
@@ -285,11 +343,22 @@ function createContainerView(attached) {
                 }
             }
         }
-        outerElement.appendChild(listElement);
+        if (view != "inventory") {
+            const outerElement = document.createElement("div");
+            outerElement.className = "list-attribute";
+            outerElement.appendChild(document.createElement("h3"));
+            outerElement.children[0].textContent = attached ? "Components:" : "Holds:";
+            if (gm) {
+                outerElement.children[0].innerHTML += '<button class="add-content-button item-button" title="Add item here, or shift-click to add commodity.">+</button>';
+                outerElement.children[0].children[0].addEventListener("click", createContent(id, attached));
+            }
+            outerElement.appendChild(listElement);
+            element = outerElement;
+        }
         if (needsNewItems) {
             sendUpdatedListeningList();
         }
-        return outerElement;
+        return element;
     }
 }
 
@@ -329,7 +398,12 @@ function removeView(view, recursed) {
     if (!recursed) {
         initialListenList = JSON.stringify(listenList);
     }
-    view.element.remove();
+    if (view.expandedView) {
+        removeView(view.expandedView, true);
+    }
+    if (view.element) {
+        view.element.remove();
+    }
     findAndDestroyChildren(view.attListElement);
     if (itemViews[id].length == 1) {
         delete items[id];
@@ -349,6 +423,7 @@ function removeView(view, recursed) {
 }
 
 function findAndDestroyChildren(element) {
+    if (!element) return; //Possibly this was a PC chain view rather than an actually visible view.
     if (element.itemView) {
         removeView(element.itemView, true);
     } else {
@@ -377,7 +452,9 @@ function setInteractionState(state, description, data, isId) {
         for (var i in ids) {
             var id = ids[i];
             for (var j in itemViews[id]) {
-                itemViews[id][j].element.classList.remove("item-highlighted");
+                if (itemViews[id][j].element) {
+                    itemViews[id][j].element.classList.remove("item-highlighted");
+                }
             }
         }
     }
@@ -386,7 +463,9 @@ function setInteractionState(state, description, data, isId) {
         for (var i in ids) {
             var id = ids[i];
             for (var j in itemViews[id]) {
-                itemViews[id][j].element.classList.add("item-highlighted");
+                if (itemViews[id][j].element) {
+                    itemViews[id][j].element.classList.add("item-highlighted");
+                }
             }
         }
     }

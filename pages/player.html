@@ -6,16 +6,28 @@
         <script src="/common.js"></script>
         <script src="/player.js"></script>
         <link href="interface-common.css" rel="stylesheet"/>
+        <style>
+            .column>.item-view {
+                border: unset;
+                margin: 0;
+            }
+        </style>
     </head>
-    <body>
-        <div id="inventory-column" class="column">
-            <h2 class="col-title">Inventory</h2>
+    <body style="flex-direction: column;">
+        <div style="flex-direction: row; flex-grow: 1;">
+            <div id="inventory-column" class="column">
+                <h2 class="col-title">Inventory</h2>
+            </div>
+            <div id="surroundings-column" class="column">
+                <h2 class="col-title">Surroundings</h2>
+            </div>
+            <div id="self-column" class="column">
+                <h2 class="col-title">Self</h2>
+            </div>
         </div>
-        <div id="surroundings-column" class="column">
-            <h2 class="col-title">Surroundings</h2>
-        </div>
-        <div id="self-column" class="column">
-            <h2 class="col-title">Self</h2>
+        <div id="mode-description">
+            <span id="mode-description-text"></span>
+            <button onclick="setInteractionState('none')">Cancel</button>
         </div>
     </body>
 </html>

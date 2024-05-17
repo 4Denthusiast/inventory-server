@@ -21,23 +21,34 @@ function createLocation() {
 }
 
 specificNewItemHandler = function(id, oldItem, newItem) {
-    var viewType = null;
-    var whereToAdd = null;
-    var expandedViewLocation = null;
     if (newItem.location && (!oldItem || !oldItem.location)) {
-        viewType = "shortInList";
-        whereToAdd = "location-list";
-        expandedViewLocation = "locations";
-    } //TODO: Add the player and recipe cases.
-    if (viewType) {
-        var newView = {
-            type:viewType,
-            id:id,
-            whereToPutColumn:document.getElementById(expandedViewLocation)
-        };
-        createView(newView);
-        document.getElementById(whereToAdd).appendChild(newView.element);
+        addListView(id, "location-list", "locations");
     }
+    // TODO: add the recipe case.
+}
+
+specificCheckPCView = function(view) {
+    if (view.level == playerCharacters[view.player].length - 2 && playerCharacters[view.player][view.level + 1].limit) {
+        if (!view.dependentView) {
+            view.dependentView = addListView(view.id, "players-list", "players");
+        }
+    } else {
+        if (view.dependentView) {
+            removeView(view.dependentView);
+            delete view.dependentView;
+        }
+    }
+}
+
+function addListView(id, whereToAdd, expandedViewLocation) {
+    var newView = {
+        type:"shortInList",
+        id:id,
+        whereToPutColumn:document.getElementById(expandedViewLocation)
+    };
+    createView(newView);
+    document.getElementById(whereToAdd).appendChild(newView.element);
+    return newView;
 }
 
 visibleAttributes.splice(1,0,"..");
