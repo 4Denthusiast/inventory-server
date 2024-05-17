@@ -18,7 +18,7 @@ import Control.Monad
 import Control.Monad.Error.Class
 import Control.Monad.IO.Class
 import Data.Char
-import Data.List (union)
+import Data.List
 import qualified Data.Map.Lazy as M
 import Data.Maybe
 import qualified Data.Set as S
@@ -151,7 +151,7 @@ itemUpdatesServer worldVar (Just name) clientWants = do
     clientState <- changeListening worldVar name clientWants
     idList <- liftIO $ queuePopTimeout 30000000 $ itemUpdateQueue clientState
     world' <- liftIO $ readMVar worldVar --Explicitly refresh this because queuePop is designed to block so this read will execute much later in general.
-    return $ mapMaybe (\i -> (i,,) <$> M.lookup i (itemStore world') <*> M.lookup i (itemNewness world')) idList
+    return $ mapMaybe (\i -> (i,,) <$> M.lookup i (itemStore world') <*> M.lookup i (itemNewness world')) $ nub idList
   where replaceListeningThread = modifyMVar_ worldVar $ \world -> case M.lookup name (clientStates world) of
           Just cs -> do
             maybe (return ()) killThread (clientListeningThread cs)

@@ -155,6 +155,7 @@ function updateAttributeViews(view) {
         if (attView && !(att in item)) {
             view.attListElement.removeChild(attView);
             delete view.attElements[att];
+            findAndDestroyChildren(attView);
         } else if (!attView && att in item) {
             var newAttView = createAttView(att, item[att], view.id, item, view.type);
             if (newAttView) {
@@ -171,10 +172,16 @@ function updateAttributeViews(view) {
                     if (newAttView) {
                         attView.replaceWith(newAttView);
                         view.attElements[att] = newAttView;
+                    } else {
+                        attView.parentNode.removeChild(attView);
+                        delete view.attElements[att];
                     }
+                    findAndDestroyChildren(attView);
                 }
             }
-            lastExistingNode = view.attElements[att];
+            if (att in view.attElements) {
+                lastExistingNode = view.attElements[att];
+            }
         } // The other case, that there neither was nor is this attribute, needs no update.
         view.attBeingDisplayed[att] = item[att];
     }
@@ -449,7 +456,7 @@ function findAndDestroyChildren(element) {
     if (element.itemView) {
         removeView(element.itemView, true);
     } else {
-        for (var i = 0; i < element.children.length; i++) {
+        for (var i = element.children.length - 1; i >= 0; i--) {//Backwards because elements are getting removed.
             findAndDestroyChildren(element.children[i]);
         }
     }
